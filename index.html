@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Compensation Case Study Allocator</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; background: #ffffff; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+
+    .pots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; background: #fff; }
+
+    .big { font-size: 20px; font-weight: 700; }
+    .muted { color: #666; font-size: 12px; }
+    .tot { font-weight: 700; margin-top: 2px; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border-bottom: 1px solid #eee; padding: 10px; vertical-align: top; }
+    th { text-align: left; font-size: 12px; color: #444; }
+    .rowTitle { font-weight: 700; margin-bottom: 2px; }
+
+    .btn { padding: 6px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .footer { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .warn { color: #b00020; font-size: 12px; }
+
+    .answerGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+
+    /* If something breaks, we show a big visible error box */
+    #fatalErrorBox { display:none; border: 2px solid #b00020; background: #fff5f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    #fatalErrorBox .title { font-weight: 800; color:#b00020; }
+    #fatalErrorBox pre { white-space: pre-wrap; font-size: 12px; margin: 8px 0 0 0; }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <!-- Fatal error box (only shows if JS breaks) -->
+  <div id="fatalErrorBox">
+    <div class="title">Something broke in the allocator (JavaScript error)</div>
+    <div class="muted">This is not you. Copy the error text below and paste it into ChatGPT so I can fix it fast.</div>
+    <pre id="fatalErrorText"></pre>
+  </div>
+
+  <!-- Pots -->
+  <div class="pots">
+    <div class="card">
+      <div class="muted">Merit pot remaining</div>
+      <div id="meritRemaining" class="big">$0</div>
+      <div class="muted">Allocations must be in $500 increments.</div>
+    </div>
+
+    <div class="card">
+      <div class="muted">Bonus pot remaining</div>
+      <div id="bonusRemaining" class="big">$0</div>
+      <div class="muted">Allocations must be in $500 increments.</div>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="card">
+    <div class="big">Allocate funds to your team</div>
+    <div class="muted">
+      Use the +$500 / –$500 buttons. Totals update automatically.
+      The answer unlocks only after both pots are fully allocated.
+    </div>
+  </div>
+
+  <!-- Allocation Table -->
+  <div class="card" style="margin-top:12px;">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:26%;">Employee</th>
+          <th style="width:20%;">Context</th>
+          <th style="width:27%;">Merit</th>
+          <th style="width:27%;">Bonus</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <button class="btn" id="resetBtn">Reset allocations</button>
+      <button class="btn" id="revealBtn" disabled>Reveal answer</button>
+      <span class="warn" id="warning"></span>
+    </div>
+
+    <!-- Answer panel (hidden until reveal) -->
+    <div id="answerPanel" class="card" style="margin-top:12px; display:none;">
+      <div class="big">Answer (Recommended Allocation)</div>
+      <div class="muted">Reveals only after you fully allocate both pots.</div>
+
+      <div class="answerGrid">
+        <div>
+          <div class="muted">Recommended Merit Total</div>
+          <div class="tot" id="ansMeritTotal">$0</div>
+        </div>
+        <div>
+          <div class="muted">Recommended Bonus Total</div>
+          <div class="tot" id="ansBonusTotal">$0</div>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:10px;">
+        Optional next enhancement: show per-employee recommended allocations here.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  function showFatalError(err) {
+    const box = document.getElementById("fatalErrorBox");
+    const text = document.getElementById("fatalErrorText");
+    if (box && text) {
+      box.style.display = "block";
+      text.textContent = String(err && err.stack ? err.stack : err);
+    }
+  }
+
+  try {
+    /* =========================
+       CONFIGURATION
+    ========================== */
+
+    const DENOMINATION = 500;
+
+    // Starting pots (from your Excel v2)
+    const START_MERIT = 13500;
+    const START_BONUS = 32000;
+
+    // "Answer" totals (if correct outcome is full-spend, keep these as START_*)
+    const RECOMMENDED_MERIT_TOTAL = START_MERIT;
+    const RECOMMENDED_BONUS_TOTAL = START_BONUS;
+
+    // Employee roster
+    // IMPORTANT: Edit ONLY the strings/numbers here (names/titles/pays).
+    const employees = [
+      { empName: "Ines", title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0 },
+      { empName: "Ananya", title: "Sr Business Analyst",  basePay: 80000,  merit: 0, bonus: 0 },
+      { empName: "Jace", title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0 },
+      { empName: "Miles", title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0 },
+      { empName: "Emilio", title: "Business Analyst",     basePay: 80000,  merit: 0, bonus: 0 }
+    ];
+
+    /* =========================
+       STATE
+    ========================== */
+
+    let meritRemaining = START_MERIT;
+    let bonusRemaining = START_BONUS;
+
+    const fmt = (n) => n.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0
+    });
+
+    const elMeritRemaining = document.getElementById("meritRemaining");
+    const elBonusRemaining = document.getElementById("bonusRemaining");
+    const elRows = document.getElementById("rows");
+    const elWarning = document.getElementById("warning");
+    const elRevealBtn = document.getElementById("revealBtn");
+    const elResetBtn = document.getElementById("resetBtn");
+    const elAnswerPanel = document.getElementById("answerPanel");
+    const elAnsMeritTotal = document.getElementById("ansMeritTotal");
+    const elAnsBonusTotal = document.getElementById("ansBonusTotal");
+
+    if (!elMeritRemaining || !elBonusRemaining || !elRows || !elWarning || !elRevealBtn || !elResetBtn || !elAnswerPanel || !elAnsMeritTotal || !elAnsBonusTotal) {
+      throw new Error("One or more required elements are missing from the page. (IDs changed or HTML not pasted fully.)");
+    }
+
+    function setWarning(msg) {
+      elWarning.textContent = msg || "";
+    }
+
+    function isComplete() {
+      // Completion rule: both pots fully allocated
+      return (meritRemaining === 0 && bonusRemaining === 0);
+    }
+
+    function render() {
+      elMeritRemaining.textContent = fmt(meritRemaining);
+      elBonusRemaining.textContent = fmt(bonusRemaining);
+
+      // Gate Reveal button
+      elRevealBtn.disabled = !isComplete();
+
+      // Populate answer totals (always populated; panel visibility is gated)
+      elAnsMeritTotal.textContent = fmt(RECOMMENDED_MERIT_TOTAL);
+      elAnsBonusTotal.textContent = fmt(RECOMMENDED_BONUS_TOTAL);
+
+      // Build rows
+      elRows.innerHTML = "";
+
+      employees.forEach((e, idx) => {
+        const tr = document.createElement("tr");
+
+        // Employee column: Name above Title
+        const tdEmp = document.createElement("td");
+        tdEmp.innerHTML = `
+          <div class="rowTitle">${e.empName}</div>
+          <div class="muted">${e.title}</div>
+        `;
+        tr.appendChild(tdEmp);
+
+        // Context: Base pay only
+        const tdCtx = document.createElement("td");
+        tdCtx.innerHTML = `
+          <div class="muted">Base pay</div>
+          <div class="tot">${fmt(e.basePay)}</div>
+        `;
+        tr.appendChild(tdCtx);
+
+        // Merit
+        const tdMerit = document.createElement("td");
+        tdMerit.innerHTML = `
+          <div class="muted">Allocated</div>
+          <div class="tot">${fmt(e.merit)}</div>
+          <div class="btns">
+            <button class="btn" ${meritRemaining < DENOMINATION ? "disabled" : ""} data-action="meritPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${e.merit < DENOMINATION ? "disabled" : ""} data-action="meritMinus" data-idx="${idx}">– $500</button>
+          </div>
+        `;
+        tr.appendChild(tdMerit);
+
+        // Bonus
+        const tdBonus = document.createElement("td");
+        tdBonus.innerHTML = `
+          <div class="muted">Allocated</div>
+          <div class="tot">${fmt(e.bonus)}</div>
+          <div class="btns">
+            <button class="btn" ${bonusRemaining < DENOMINATION ? "disabled" : ""} data-action="bonusPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${e.bonus < DENOMINATION ? "disabled" : ""} data-action="bonusMinus" data-idx="${idx}">– $500</button>
+          </div>
+        `;
+        tr.appendChild(tdBonus);
+
+        elRows.appendChild(tr);
+      });
+    }
+
+    function adjust(idx, type, delta) {
+      setWarning("");
+
+      if (type === "merit") {
+        if (delta > 0 && meritRemaining < DENOMINATION) return setWarning("Merit pot is empty.");
+        if (delta < 0 && employees[idx].merit < DENOMINATION) return;
+        employees[idx].merit += delta;
+        meritRemaining -= delta;
+      }
+
+      if (type === "bonus") {
+        if (delta > 0 && bonusRemaining < DENOMINATION) return setWarning("Bonus pot is empty.");
+        if (delta < 0 && employees[idx].bonus < DENOMINATION) return;
+        employees[idx].bonus += delta;
+        bonusRemaining -= delta;
+      }
+
+      render();
+    }
+
+    // Button clicks (table is dynamically generated, so we delegate)
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-action]");
+      if (!btn) return;
+
+      const idx = Number(btn.dataset.idx);
+      const action = btn.dataset.action;
+
+      if (action === "meritPlus")  adjust(idx, "merit",  DENOMINATION);
+      if (action === "meritMinus") adjust(idx, "merit", -DENOMINATION);
+      if (action === "bonusPlus")  adjust(idx, "bonus",  DENOMINATION);
+      if (action === "bonusMinus") adjust(idx, "bonus", -DENOMINATION);
+    });
+
+    // Reset
+    elResetBtn.addEventListener("click", () => {
+      employees.forEach(e => { e.merit = 0; e.bonus = 0; });
+      meritRemaining = START_MERIT;
+      bonusRemaining = START_BONUS;
+      setWarning("");
+      elAnswerPanel.style.display = "none";
+      render();
+    });
+
+    // Reveal Answer (gated)
+    elRevealBtn.addEventListener("click", () => {
+      if (!isComplete()) {
+        setWarning("Allocate all funds (both pots) before revealing the answer.");
+        return;
+      }
+      elAnswerPanel.style.display = "block";
+    });
+
+    // Initial render
+    render();
+
+  } catch (err) {
+    showFatalError(err);
+  }
+})();
+</script>
+
+</body>
+</html>
