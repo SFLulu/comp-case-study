@@ -30,7 +30,7 @@
 
     .answerGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
 
-    /* If something breaks, we show a big visible error box */
+    /* Visible error box if JS breaks */
     #fatalErrorBox { display:none; border: 2px solid #b00020; background: #fff5f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
     #fatalErrorBox .title { font-weight: 800; color:#b00020; }
     #fatalErrorBox pre { white-space: pre-wrap; font-size: 12px; margin: 8px 0 0 0; }
@@ -43,7 +43,7 @@
   <!-- Fatal error box (only shows if JS breaks) -->
   <div id="fatalErrorBox">
     <div class="title">Something broke in the allocator (JavaScript error)</div>
-    <div class="muted">This is not you. Copy the error text below and paste it into ChatGPT so I can fix it fast.</div>
+    <div class="muted">Copy the error text below and paste it back to troubleshoot.</div>
     <pre id="fatalErrorText"></pre>
   </div>
 
@@ -67,7 +67,7 @@
     <div class="big">Allocate funds to your team</div>
     <div class="muted">
       Use the +$500 / –$500 buttons. Totals update automatically.
-      The answer unlocks only after both pots are fully allocated.
+      When you are satisfied, click <strong>I’m done</strong> to unlock the answer.
     </div>
   </div>
 
@@ -89,6 +89,7 @@
 
     <div class="footer">
       <button class="btn" id="resetBtn">Reset allocations</button>
+      <button class="btn" id="doneBtn">I’m done</button>
       <button class="btn" id="revealBtn" disabled>Reveal answer</button>
       <span class="warn" id="warning"></span>
     </div>
@@ -96,7 +97,7 @@
     <!-- Answer panel (hidden until reveal) -->
     <div id="answerPanel" class="card" style="margin-top:12px; display:none;">
       <div class="big">Answer (Recommended Allocation)</div>
-      <div class="muted">Reveals only after you fully allocate both pots.</div>
+      <div class="muted">Visible after you click <strong>I’m done</strong> and then <strong>Reveal answer</strong>.</div>
 
       <div class="answerGrid">
         <div>
@@ -110,7 +111,7 @@
       </div>
 
       <div class="muted" style="margin-top:10px;">
-        Optional next enhancement: show per-employee recommended allocations here.
+        Optional enhancement: add per-employee recommended allocations here.
       </div>
     </div>
   </div>
@@ -137,21 +138,20 @@
 
     const DENOMINATION = 500;
 
-    // Starting pots (from your Excel v2)
+    // Starting pots (update if needed)
     const START_MERIT = 13500;
     const START_BONUS = 32000;
 
-    // "Answer" totals (if correct outcome is full-spend, keep these as START_*)
+    // "Answer" totals (set to your official solution key)
     const RECOMMENDED_MERIT_TOTAL = START_MERIT;
     const RECOMMENDED_BONUS_TOTAL = START_BONUS;
 
-    // Employee roster
-    // IMPORTANT: Edit ONLY the strings/numbers here (names/titles/pays).
+    // Employee roster (edit names/titles/base pay here)
     const employees = [
-      { empName: "Ines", title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0 },
+      { empName: "Ines",   title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0 },
       { empName: "Ananya", title: "Sr Business Analyst",  basePay: 80000,  merit: 0, bonus: 0 },
-      { empName: "Jace", title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0 },
-      { empName: "Miles", title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0 },
+      { empName: "Jace",   title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0 },
+      { empName: "Miles",  title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0 },
       { empName: "Emilio", title: "Business Analyst",     basePay: 80000,  merit: 0, bonus: 0 }
     ];
 
@@ -161,6 +161,9 @@
 
     let meritRemaining = START_MERIT;
     let bonusRemaining = START_BONUS;
+
+    // Option 3: learner self-declares completion
+    let markedDone = false;
 
     const fmt = (n) => n.toLocaleString("en-US", {
       style: "currency",
@@ -174,11 +177,12 @@
     const elWarning = document.getElementById("warning");
     const elRevealBtn = document.getElementById("revealBtn");
     const elResetBtn = document.getElementById("resetBtn");
+    const elDoneBtn = document.getElementById("doneBtn");
     const elAnswerPanel = document.getElementById("answerPanel");
     const elAnsMeritTotal = document.getElementById("ansMeritTotal");
     const elAnsBonusTotal = document.getElementById("ansBonusTotal");
 
-    if (!elMeritRemaining || !elBonusRemaining || !elRows || !elWarning || !elRevealBtn || !elResetBtn || !elAnswerPanel || !elAnsMeritTotal || !elAnsBonusTotal) {
+    if (!elMeritRemaining || !elBonusRemaining || !elRows || !elWarning || !elRevealBtn || !elResetBtn || !elDoneBtn || !elAnswerPanel || !elAnsMeritTotal || !elAnsBonusTotal) {
       throw new Error("One or more required elements are missing from the page. (IDs changed or HTML not pasted fully.)");
     }
 
@@ -187,20 +191,23 @@
     }
 
     function isComplete() {
-      // Completion rule: both pots fully allocated
-      return (meritRemaining === 0 && bonusRemaining === 0);
+      // Completion rule (Option 3): learner clicked "I'm done"
+      return markedDone === true;
     }
 
     function render() {
       elMeritRemaining.textContent = fmt(meritRemaining);
       elBonusRemaining.textContent = fmt(bonusRemaining);
 
-      // Gate Reveal button
+      // Gate Reveal Answer based on "I'm done"
       elRevealBtn.disabled = !isComplete();
 
-      // Populate answer totals (always populated; panel visibility is gated)
+      // Populate answer totals (panel visibility is gated)
       elAnsMeritTotal.textContent = fmt(RECOMMENDED_MERIT_TOTAL);
       elAnsBonusTotal.textContent = fmt(RECOMMENDED_BONUS_TOTAL);
+
+      // If marked done, change the Done button label (visual feedback)
+      elDoneBtn.textContent = markedDone ? "Done ✓" : "I’m done";
 
       // Build rows
       elRows.innerHTML = "";
@@ -230,8 +237,8 @@
           <div class="muted">Allocated</div>
           <div class="tot">${fmt(e.merit)}</div>
           <div class="btns">
-            <button class="btn" ${meritRemaining < DENOMINATION ? "disabled" : ""} data-action="meritPlus" data-idx="${idx}">+ $500</button>
-            <button class="btn" ${e.merit < DENOMINATION ? "disabled" : ""} data-action="meritMinus" data-idx="${idx}">– $500</button>
+            <button class="btn" ${markedDone || meritRemaining < DENOMINATION ? "disabled" : ""} data-action="meritPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${markedDone || e.merit < DENOMINATION ? "disabled" : ""} data-action="meritMinus" data-idx="${idx}">– $500</button>
           </div>
         `;
         tr.appendChild(tdMerit);
@@ -242,8 +249,8 @@
           <div class="muted">Allocated</div>
           <div class="tot">${fmt(e.bonus)}</div>
           <div class="btns">
-            <button class="btn" ${bonusRemaining < DENOMINATION ? "disabled" : ""} data-action="bonusPlus" data-idx="${idx}">+ $500</button>
-            <button class="btn" ${e.bonus < DENOMINATION ? "disabled" : ""} data-action="bonusMinus" data-idx="${idx}">– $500</button>
+            <button class="btn" ${markedDone || bonusRemaining < DENOMINATION ? "disabled" : ""} data-action="bonusPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${markedDone || e.bonus < DENOMINATION ? "disabled" : ""} data-action="bonusMinus" data-idx="${idx}">– $500</button>
           </div>
         `;
         tr.appendChild(tdBonus);
@@ -254,6 +261,11 @@
 
     function adjust(idx, type, delta) {
       setWarning("");
+
+      // Strong guardrail: no edits after the learner marks done
+      if (markedDone) {
+        return setWarning("You marked this as complete. Click Reset allocations to make changes.");
+      }
 
       if (type === "merit") {
         if (delta > 0 && meritRemaining < DENOMINATION) return setWarning("Merit pot is empty.");
@@ -272,7 +284,7 @@
       render();
     }
 
-    // Button clicks (table is dynamically generated, so we delegate)
+    // Button clicks (table rows are dynamically generated)
     document.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-action]");
       if (!btn) return;
@@ -286,11 +298,19 @@
       if (action === "bonusMinus") adjust(idx, "bonus", -DENOMINATION);
     });
 
-    // Reset
+    // "I'm done" = unlock reveal
+    elDoneBtn.addEventListener("click", () => {
+      markedDone = true;
+      setWarning("Marked as complete. You can now reveal the answer.");
+      render();
+    });
+
+    // Reset = clear allocations and lock again
     elResetBtn.addEventListener("click", () => {
       employees.forEach(e => { e.merit = 0; e.bonus = 0; });
       meritRemaining = START_MERIT;
       bonusRemaining = START_BONUS;
+      markedDone = false;
       setWarning("");
       elAnswerPanel.style.display = "none";
       render();
@@ -299,7 +319,7 @@
     // Reveal Answer (gated)
     elRevealBtn.addEventListener("click", () => {
       if (!isComplete()) {
-        setWarning("Allocate all funds (both pots) before revealing the answer.");
+        setWarning("Click “I’m done” to unlock the answer.");
         return;
       }
       elAnswerPanel.style.display = "block";
