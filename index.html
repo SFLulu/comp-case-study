@@ -28,8 +28,6 @@
     .footer { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
     .warn { color: #b00020; font-size: 12px; }
 
-    .answerGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-
     /* Visible error box if JS breaks */
     #fatalErrorBox { display:none; border: 2px solid #b00020; background: #fff5f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
     #fatalErrorBox .title { font-weight: 800; color:#b00020; }
@@ -67,7 +65,9 @@
     <div class="big">Allocate funds to your team</div>
     <div class="muted">
       Use the +$500 / –$500 buttons. Totals update automatically.
-      When you are satisfied, click <strong>I’m done</strong> to unlock the answer.
+      Allocate at least $500 to each employee (Emilio may receive $0).
+      When every employee requirement is met, the <strong>I’m done</strong> button will appear.
+      Then continue to the next slide to view the answer.
     </div>
   </div>
 
@@ -89,30 +89,8 @@
 
     <div class="footer">
       <button class="btn" id="resetBtn">Reset allocations</button>
-      <button class="btn" id="doneBtn">I’m done</button>
-      <button class="btn" id="revealBtn" disabled>Reveal answer</button>
+      <button class="btn" id="doneBtn" style="display:none;">I’m done</button>
       <span class="warn" id="warning"></span>
-    </div>
-
-    <!-- Answer panel (hidden until reveal) -->
-    <div id="answerPanel" class="card" style="margin-top:12px; display:none;">
-      <div class="big">Answer (Recommended Allocation)</div>
-      <div class="muted">Visible after you click <strong>I’m done</strong> and then <strong>Reveal answer</strong>.</div>
-
-      <div class="answerGrid">
-        <div>
-          <div class="muted">Recommended Merit Total</div>
-          <div class="tot" id="ansMeritTotal">$0</div>
-        </div>
-        <div>
-          <div class="muted">Recommended Bonus Total</div>
-          <div class="tot" id="ansBonusTotal">$0</div>
-        </div>
-      </div>
-
-      <div class="muted" style="margin-top:10px;">
-        Optional enhancement: add per-employee recommended allocations here.
-      </div>
     </div>
   </div>
 
@@ -142,17 +120,14 @@
     const START_MERIT = 13500;
     const START_BONUS = 32000;
 
-    // "Answer" totals (set to your official solution key)
-    const RECOMMENDED_MERIT_TOTAL = START_MERIT;
-    const RECOMMENDED_BONUS_TOTAL = START_BONUS;
-
     // Employee roster (edit names/titles/base pay here)
+    // canBeZero=true only for Emilio (allowed $0)
     const employees = [
-      { empName: "Ines",   title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0 },
-      { empName: "Ananya", title: "Sr Business Analyst",  basePay: 80000,  merit: 0, bonus: 0 },
-      { empName: "Jace",   title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0 },
-      { empName: "Miles",  title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0 },
-      { empName: "Emilio", title: "Business Analyst",     basePay: 80000,  merit: 0, bonus: 0 }
+      { empName: "Ines",   title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0, canBeZero: false },
+      { empName: "Ananya", title: "Sr Business Analyst",  basePay: 80000,  merit: 0, bonus: 0, canBeZero: false },
+      { empName: "Jace",   title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0, canBeZero: false },
+      { empName: "Miles",  title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0, canBeZero: false },
+      { empName: "Emilio", title: "Business Analyst",     basePay: 80000,  merit: 0, bonus: 0, canBeZero: true }
     ];
 
     /* =========================
@@ -162,7 +137,7 @@
     let meritRemaining = START_MERIT;
     let bonusRemaining = START_BONUS;
 
-    // Option 3: learner self-declares completion
+    // "I'm done" state: learner self-declares completion once the gate is satisfied
     let markedDone = false;
 
     const fmt = (n) => n.toLocaleString("en-US", {
@@ -175,14 +150,10 @@
     const elBonusRemaining = document.getElementById("bonusRemaining");
     const elRows = document.getElementById("rows");
     const elWarning = document.getElementById("warning");
-    const elRevealBtn = document.getElementById("revealBtn");
     const elResetBtn = document.getElementById("resetBtn");
     const elDoneBtn = document.getElementById("doneBtn");
-    const elAnswerPanel = document.getElementById("answerPanel");
-    const elAnsMeritTotal = document.getElementById("ansMeritTotal");
-    const elAnsBonusTotal = document.getElementById("ansBonusTotal");
 
-    if (!elMeritRemaining || !elBonusRemaining || !elRows || !elWarning || !elRevealBtn || !elResetBtn || !elDoneBtn || !elAnswerPanel || !elAnsMeritTotal || !elAnsBonusTotal) {
+    if (!elMeritRemaining || !elBonusRemaining || !elRows || !elWarning || !elResetBtn || !elDoneBtn) {
       throw new Error("One or more required elements are missing from the page. (IDs changed or HTML not pasted fully.)");
     }
 
@@ -190,23 +161,27 @@
       elWarning.textContent = msg || "";
     }
 
-    function isComplete() {
-      // Completion rule (Option 3): learner clicked "I'm done"
-      return markedDone === true;
+    // Gate: all employees except those allowed zero must have >= $500 total (merit+bonus)
+    function hasCompletedAllocationsForAll() {
+      return employees.every(e => {
+        if (e.canBeZero) return true;
+        return (e.merit + e.bonus) >= DENOMINATION;
+      });
     }
 
     function render() {
       elMeritRemaining.textContent = fmt(meritRemaining);
       elBonusRemaining.textContent = fmt(bonusRemaining);
 
-      // Gate Reveal Answer based on "I'm done"
-      elRevealBtn.disabled = !isComplete();
+      const readyForDone = hasCompletedAllocationsForAll();
 
-      // Populate answer totals (panel visibility is gated)
-      elAnsMeritTotal.textContent = fmt(RECOMMENDED_MERIT_TOTAL);
-      elAnsBonusTotal.textContent = fmt(RECOMMENDED_BONUS_TOTAL);
+      // Show "I'm done" only when the gate is satisfied (or already marked done)
+      elDoneBtn.style.display = (readyForDone || markedDone) ? "inline-block" : "none";
 
-      // If marked done, change the Done button label (visual feedback)
+      // After they click Done, disable it
+      elDoneBtn.disabled = markedDone;
+
+      // Change button label after click
       elDoneBtn.textContent = markedDone ? "Done ✓" : "I’m done";
 
       // Build rows
@@ -298,10 +273,14 @@
       if (action === "bonusMinus") adjust(idx, "bonus", -DENOMINATION);
     });
 
-    // "I'm done" = unlock reveal
+    // "I'm done" = lock allocations and prompt to continue
     elDoneBtn.addEventListener("click", () => {
+      if (!hasCompletedAllocationsForAll()) {
+        setWarning("Allocate at least $500 to each employee (Emilio may receive $0) before clicking “I’m done”.");
+        return;
+      }
       markedDone = true;
-      setWarning("Marked as complete. You can now reveal the answer.");
+      setWarning("You’re done. Continue to the next slide to view the answer.");
       render();
     });
 
@@ -312,17 +291,7 @@
       bonusRemaining = START_BONUS;
       markedDone = false;
       setWarning("");
-      elAnswerPanel.style.display = "none";
       render();
-    });
-
-    // Reveal Answer (gated)
-    elRevealBtn.addEventListener("click", () => {
-      if (!isComplete()) {
-        setWarning("Click “I’m done” to unlock the answer.");
-        return;
-      }
-      elAnswerPanel.style.display = "block";
     });
 
     // Initial render
