@@ -28,6 +28,11 @@
     .footer { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
     .warn { color: #b00020; font-size: 12px; }
 
+    .meta { margin-top: 4px; font-size: 12px; line-height: 1.3; }
+    .meta .label { color: #666; }
+    .meta .value { font-weight: 700; color: #000; }
+    .meta .note { color: #666; font-style: italic; }
+
     /* Visible error box if JS breaks */
     #fatalErrorBox { display:none; border: 2px solid #b00020; background: #fff5f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
     #fatalErrorBox .title { font-weight: 800; color:#b00020; }
@@ -65,8 +70,8 @@
     <div class="big">Allocate funds to your team</div>
     <div class="muted">
       Use the +$500 / –$500 buttons. Totals update automatically.
-      Allocate funds to each employee. When finished allocating funds, the <strong>I’m done</strong> button will appear.
-      Then continue to the next slide to view the answer.
+      Allocate merit and bonus funds to your employees. When funds have been allocated to each employee, the <strong>I’m done</strong> button will appear.
+      Then continue to the next slide to view the recommendations.
     </div>
   </div>
 
@@ -75,10 +80,10 @@
     <table>
       <thead>
         <tr>
-          <th style="width:26%;">Employee</th>
-          <th style="width:20%;">Context</th>
-          <th style="width:27%;">Merit</th>
-          <th style="width:27%;">Bonus</th>
+          <th style="width:32%;">Employee</th>
+          <th style="width:28%;">Context</th>
+          <th style="width:20%;">Merit</th>
+          <th style="width:20%;">Bonus</th>
         </tr>
       </thead>
       <tbody id="rows">
@@ -119,14 +124,64 @@
     const START_MERIT = 13500;
     const START_BONUS = 32000;
 
-    // Employee roster (edit names/titles/base pay here)
+    // Employee roster (includes performance rating + pay relative to others + optional notes)
     // canBeZero=true only for Emilio (allowed $0, not disclosed in instructions)
     const employees = [
-      { empName: "Ines",   title: "Business Analyst",     basePay: 70000,  merit: 0, bonus: 0, canBeZero: false },
-      { empName: "Ananya", title: "Sr Business Analyst",  basePay: 80000,  merit: 0, bonus: 0, canBeZero: false },
-      { empName: "Jace",   title: "Sr Business Analyst",  basePay: 85000,  merit: 0, bonus: 0, canBeZero: false },
-      { empName: "Miles",  title: "Business Manager",     basePay: 130000, merit: 0, bonus: 0, canBeZero: false },
-      { empName: "Emilio", title: "Business Analyst",     basePay: 80000,  merit: 0, bonus: 0, canBeZero: true }
+      {
+        empName: "Ines",
+        title: "Business Analyst",
+        basePay: 70000,
+        performanceRating: "Exceptional",
+        payRelative: "Competitive",
+        notes: "Filled in for maternity leave",
+        merit: 0,
+        bonus: 0,
+        canBeZero: false
+      },
+      {
+        empName: "Ananya",
+        title: "Sr Business Analyst",
+        basePay: 80000,
+        performanceRating: "Successful",
+        payRelative: "Low",
+        notes: "",
+        merit: 0,
+        bonus: 0,
+        canBeZero: false
+      },
+      {
+        empName: "Jace",
+        title: "Sr Business Analyst",
+        basePay: 85000,
+        performanceRating: "Successful",
+        payRelative: "Competitive",
+        notes: "",
+        merit: 0,
+        bonus: 0,
+        canBeZero: false
+      },
+      {
+        empName: "Miles",
+        title: "Business Manager",
+        basePay: 130000,
+        performanceRating: "Improve",
+        payRelative: "Competitive",
+        notes: "",
+        merit: 0,
+        bonus: 0,
+        canBeZero: false
+      },
+      {
+        empName: "Emilio",
+        title: "Business Analyst",
+        basePay: 80000,
+        performanceRating: "Improve",
+        payRelative: "High",
+        notes: "",
+        merit: 0,
+        bonus: 0,
+        canBeZero: true
+      }
     ];
 
     /* =========================
@@ -160,8 +215,11 @@
       elWarning.textContent = msg || "";
     }
 
-    // Gate: all employees except those allowed zero must have >= $500 total (merit+bonus)
-    function hasCompletedAllocationsForAll() {
+    // Gate (updated wording + behavior):
+    // "Funds have been allocated to each employee" means:
+    // - For most employees: they must have at least $500 total across merit+bonus
+    // - For employees allowed to be zero (Emilio): 0 is acceptable
+    function hasAllocatedToEachEmployee() {
       return employees.every(e => {
         if (e.canBeZero) return true;
         return (e.merit + e.bonus) >= DENOMINATION;
@@ -172,7 +230,7 @@
       elMeritRemaining.textContent = fmt(meritRemaining);
       elBonusRemaining.textContent = fmt(bonusRemaining);
 
-      const readyForDone = hasCompletedAllocationsForAll();
+      const readyForDone = hasAllocatedToEachEmployee();
 
       // Show "I'm done" only when the gate is satisfied (or already marked done)
       elDoneBtn.style.display = (readyForDone || markedDone) ? "inline-block" : "none";
@@ -189,19 +247,26 @@
       employees.forEach((e, idx) => {
         const tr = document.createElement("tr");
 
-        // Employee column: Name above Title
+        // Employee column: Name above Title + Performance Rating
         const tdEmp = document.createElement("td");
         tdEmp.innerHTML = `
           <div class="rowTitle">${e.empName}</div>
           <div class="muted">${e.title}</div>
+          <div class="meta">
+            <span class="label">Performance Rating:</span> <span class="value">${e.performanceRating}</span>
+          </div>
         `;
         tr.appendChild(tdEmp);
 
-        // Context: Base pay only
+        // Context: Base pay + Pay Relative + optional notes
         const tdCtx = document.createElement("td");
         tdCtx.innerHTML = `
           <div class="muted">Base pay</div>
           <div class="tot">${fmt(e.basePay)}</div>
+          <div class="meta" style="margin-top:6px;">
+            <span class="label">Pay Relative to Others:</span> <span class="value">${e.payRelative}</span>
+            ${e.notes ? `<div class="note" style="margin-top:4px;">${e.notes}</div>` : ""}
+          </div>
         `;
         tr.appendChild(tdCtx);
 
@@ -274,12 +339,12 @@
 
     // "I'm done" = lock allocations and prompt to continue
     elDoneBtn.addEventListener("click", () => {
-      if (!hasCompletedAllocationsForAll()) {
-        setWarning("Allocate at least $500 to each employee before clicking “I’m done”.");
+      if (!hasAllocatedToEachEmployee()) {
+        setWarning("Allocate funds to each employee before clicking “I’m done”.");
         return;
       }
       markedDone = true;
-      setWarning("You’re done. Continue to the next slide to view the answer.");
+      setWarning("You’re done. Continue to the next slide to view the recommendations.");
       render();
     });
 
