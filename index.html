@@ -14,9 +14,6 @@
     .muted { color: #666; font-size: 12px; }
     .tot { font-weight: 700; margin-top: 2px; }
 
-    /* NEW: extra instruction line in red */
-    .instr-extended { color: #c00000; font-size: 12px; margin-top: 6px; font-weight: 700; }
-
     /* Pots */
     .pots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; margin-bottom: 16px; }
     .potLabel { font-size: 14px; font-weight: 700; color: #444; margin-bottom: 4px; }
@@ -40,12 +37,12 @@
     .meta .value { font-weight: 700; color: #000; }
     .meta .note { color: #666; font-style: italic; }
 
-    /* NEW: employee cards become clickable after Finished */
+    /* Employee cards clickable after Finished */
     tbody tr.clickable { cursor: pointer; }
     tbody tr.clickable:hover { background: #fafafa; }
     tbody tr.selected { outline: 2px solid #cfcfcf; outline-offset: -2px; background: #f7f7f7; }
 
-    /* NEW: comparison panel */
+    /* Comparison panel */
     .compareWrap { margin-top: 12px; display: none; }
     .compareTitle { font-weight: 800; margin-bottom: 6px; }
     .compareGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -72,18 +69,12 @@
     <pre id="fatalErrorText"></pre>
   </div>
 
-  <!-- INSTRUCTIONS -->
+  <!-- INSTRUCTIONS (cleaned: removed crossed-out text; red text becomes black) -->
   <div class="card">
     <div class="big">Allocate funds to your team</div>
     <div class="muted">
-      Use the +$500 / –$500 buttons. Totals update automatically. Allocate merit and bonus funds to your employees.
-      When funds have been allocated to each employee, the <strong>Finished</strong> button will appear.
-    </div>
-
-    <!-- NEW red instruction line (per screenshot markup) -->
-    <div class="instr-extended">
       Use the +$500 / –$500 buttons to allocate merit and bonus funds to your employees. Totals update automatically.
-      You do not need to use up your entire bonus or merit budgets. Once you’re complete, click on the employee cards
+      You do not need to use your entire merit or bonus budgets. Once you’re complete, click on the employee cards
       to compare your budget with the recommended answers.
     </div>
   </div>
@@ -123,7 +114,7 @@
       <span class="warn" id="warning"></span>
     </div>
 
-    <!-- NEW: comparison panel appears after Finished and click on an employee -->
+    <!-- Comparison panel appears after Finished and click on an employee -->
     <div class="compareWrap" id="compareWrap">
       <div class="compareTitle" id="compareTitle">Compare allocations</div>
       <div class="muted" style="margin-bottom:8px;">Your allocations vs. recommended answers for the selected employee.</div>
@@ -177,8 +168,7 @@
     const START_MERIT = 13500;
     const START_BONUS = 32000;
 
-    // Recommended answers (edit these if the Excel changes)
-    // NOTE: Emilio can be $0 and still satisfy the completion rule, but we do not state that in the directions.
+    // Recommended answers (edit these when the Excel changes)
     const recommended = {
       Ines:   { merit: 0, bonus: 0 },
       Ananya: { merit: 0, bonus: 0 },
@@ -187,7 +177,7 @@
       Emilio: { merit: 0, bonus: 0 }
     };
 
-    // Employee roster
+    // Employee roster (Emilio may be $0; rule is enforced but not stated)
     const employees = [
       {
         empName: "Ines",
@@ -253,10 +243,10 @@
     let meritRemaining = START_MERIT;
     let bonusRemaining = START_BONUS;
 
-    // Marks slide-level completion
+    // Completion state
     let markedDone = false;
 
-    // Selected employee for comparison view
+    // Selected employee for compare
     let selectedEmpName = null;
 
     const fmt = (n) => n.toLocaleString("en-US", {
@@ -292,9 +282,9 @@
       elWarning.textContent = msg || "";
     }
 
-    // Gate:
-    // - Most employees must have at least $500 total across merit+bonus
-    // - Emilio is allowed to be $0
+    // Completion gate:
+    // - Most employees must have >= $500 total across merit+bonus
+    // - Emilio may be $0
     function hasAllocatedToEachEmployee() {
       return employees.every(e => {
         if (e.canBeZero) return true;
@@ -305,7 +295,6 @@
     function updateComparison(empName) {
       const emp = employees.find(e => e.empName === empName);
       const rec = recommended[empName];
-
       if (!emp || !rec) return;
 
       elCompareWrap.style.display = "block";
@@ -340,19 +329,18 @@
 
       const readyForDone = hasAllocatedToEachEmployee();
 
-      // Show Finished only when gate is satisfied OR already marked done
+      // Show Finished only when gate satisfied OR already marked done
       elDoneBtn.style.display = (readyForDone || markedDone) ? "inline-block" : "none";
       elDoneBtn.disabled = markedDone;
       elDoneBtn.textContent = markedDone ? "Finished ✓" : "Finished";
 
-      // Build rows
+      // Build table rows
       elRows.innerHTML = "";
 
       employees.forEach((e, idx) => {
         const tr = document.createElement("tr");
         tr.dataset.emp = e.empName;
 
-        // After Finished, rows become clickable
         if (markedDone) tr.classList.add("clickable");
         if (selectedEmpName === e.empName) tr.classList.add("selected");
 
@@ -431,7 +419,7 @@
       render();
     }
 
-    // Handle clicks for dynamic +/– buttons
+    // +/– button clicks
     document.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-action]");
       if (!btn) return;
@@ -445,7 +433,7 @@
       if (action === "bonusMinus") adjust(idx, "bonus", -DENOMINATION);
     });
 
-    // NEW: Employee row click behavior AFTER Finished
+    // Employee card click AFTER Finished
     elRows.addEventListener("click", (ev) => {
       const row = ev.target.closest("tr");
       if (!row) return;
@@ -453,39 +441,27 @@
       const empName = row.dataset.emp;
       if (!empName) return;
 
-      if (!markedDone) {
-        // Before finished, do nothing (prevents accidental clicks)
-        return;
-      }
+      if (!markedDone) return; // no-op before finished
 
       selectedEmpName = empName;
-
-      // Rerender to highlight selected row
       render();
-
-      // Show comparison panel
       updateComparison(empName);
     });
 
-    // Finished button behavior
+    // Finished button
     elDoneBtn.addEventListener("click", () => {
       if (!hasAllocatedToEachEmployee()) {
         setWarning("Allocate funds to each employee before clicking “Finished”.");
         return;
       }
       markedDone = true;
-
-      // Per your red-marked change: do NOT direct to another slide. Instead, tell them to click cards.
       setWarning("Click an employee card to compare your budget with the recommended answers.");
-
-      // Reset any prior selection on finishing
       selectedEmpName = null;
       elCompareWrap.style.display = "none";
-
       render();
     });
 
-    // Reset allocations
+    // Reset
     elResetBtn.addEventListener("click", () => {
       employees.forEach(e => { e.merit = 0; e.bonus = 0; });
       meritRemaining = START_MERIT;
@@ -497,7 +473,6 @@
       render();
     });
 
-    // Initial render
     render();
 
   } catch (err) {
