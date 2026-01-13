@@ -37,20 +37,13 @@
     .meta .value { font-weight: 700; color: #000; }
     .meta .note { color: #666; font-style: italic; }
 
-    /* Employee cards clickable after Finished */
-    tbody tr.clickable { cursor: pointer; }
-    tbody tr.clickable:hover { background: #fafafa; }
-    tbody tr.selected { outline: 2px solid #cfcfcf; outline-offset: -2px; background: #f7f7f7; }
-
-    /* Comparison panel */
-    .compareWrap { margin-top: 12px; display: none; }
-    .compareTitle { font-weight: 800; margin-bottom: 6px; }
-    .compareGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .compareBox { border: 1px solid #eee; border-radius: 10px; padding: 10px; }
-    .compareLabel { font-size: 12px; color: #666; margin-bottom: 2px; }
-    .compareValue { font-weight: 800; }
-    .compareDiff.good { color: #1b5e20; font-weight: 800; }
-    .compareDiff.bad { color: #b00020; font-weight: 800; }
+    /* NEW: Budget range callouts under Merit/Bonus buttons */
+    .rangeNote {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #000;
+      font-style: italic; /* per request */
+    }
 
     /* Fatal error box if JS breaks */
     #fatalErrorBox { display:none; border: 2px solid #b00020; background: #fff5f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
@@ -69,7 +62,7 @@
     <pre id="fatalErrorText"></pre>
   </div>
 
-  <!-- INSTRUCTIONS (cleaned: removed crossed-out text; red text becomes black) -->
+  <!-- INSTRUCTIONS -->
   <div class="card">
     <div class="big">Allocate funds to your team</div>
     <div class="muted">
@@ -110,34 +103,8 @@
 
     <div class="footer">
       <button class="btn" id="resetBtn">Reset allocations</button>
-      <button class="btn" id="doneBtn" style="display:none;">Finished</button>
+      <!-- Finished button REMOVED per request -->
       <span class="warn" id="warning"></span>
-    </div>
-
-    <!-- Comparison panel appears after Finished and click on an employee -->
-    <div class="compareWrap" id="compareWrap">
-      <div class="compareTitle" id="compareTitle">Compare allocations</div>
-      <div class="muted" style="margin-bottom:8px;">Your allocations vs. recommended answers for the selected employee.</div>
-
-      <div class="compareGrid">
-        <div class="compareBox">
-          <div class="compareLabel">Your Merit</div>
-          <div class="compareValue" id="yourMerit">$0</div>
-          <div class="compareLabel" style="margin-top:8px;">Recommended Merit</div>
-          <div class="compareValue" id="recMerit">$0</div>
-          <div class="compareLabel" style="margin-top:8px;">Difference</div>
-          <div id="diffMerit" class="compareDiff">$0</div>
-        </div>
-
-        <div class="compareBox">
-          <div class="compareLabel">Your Bonus</div>
-          <div class="compareValue" id="yourBonus">$0</div>
-          <div class="compareLabel" style="margin-top:8px;">Recommended Bonus</div>
-          <div class="compareValue" id="recBonus">$0</div>
-          <div class="compareLabel" style="margin-top:8px;">Difference</div>
-          <div id="diffBonus" class="compareDiff">$0</div>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -164,11 +131,11 @@
 
     const DENOMINATION = 500;
 
-    // Starting pots
+    // Starting pots (keep as-is unless you want different totals)
     const START_MERIT = 13500;
     const START_BONUS = 32000;
 
-    // Recommended answers (edit these when the Excel changes)
+    // Recommended answers (kept for future use; not displayed here)
     const recommended = {
       Ines:   { merit: 0, bonus: 0 },
       Ananya: { merit: 0, bonus: 0 },
@@ -177,7 +144,16 @@
       Emilio: { merit: 0, bonus: 0 }
     };
 
-    // Employee roster (Emilio may be $0; rule is enforced but not stated)
+    // Budget ranges to DISPLAY (per screenshot). Font must be black + italics.
+    const budgetRanges = {
+      Ines:   { merit: [2000, 4000], bonus: [4000, 5500] },
+      Ananya: { merit: [1000, 3000], bonus: [3500, 5500] },
+      Jace:   { merit: [1500, 3000], bonus: [4500, 5500] },
+      Miles:  { merit: [0, 2000],    bonus: [0, 6500] },
+      Emilio: { merit: [0, 1000],    bonus: [0, 2500] }
+    };
+
+    // Employee roster
     const employees = [
       {
         empName: "Ines",
@@ -187,8 +163,7 @@
         payRelative: "Competitive",
         notes: "Filled in for maternity leave",
         merit: 0,
-        bonus: 0,
-        canBeZero: false
+        bonus: 0
       },
       {
         empName: "Ananya",
@@ -198,8 +173,7 @@
         payRelative: "Low",
         notes: "",
         merit: 0,
-        bonus: 0,
-        canBeZero: false
+        bonus: 0
       },
       {
         empName: "Jace",
@@ -209,8 +183,7 @@
         payRelative: "Competitive",
         notes: "",
         merit: 0,
-        bonus: 0,
-        canBeZero: false
+        bonus: 0
       },
       {
         empName: "Miles",
@@ -220,8 +193,7 @@
         payRelative: "Competitive",
         notes: "",
         merit: 0,
-        bonus: 0,
-        canBeZero: false
+        bonus: 0
       },
       {
         empName: "Emilio",
@@ -231,8 +203,7 @@
         payRelative: "High",
         notes: "",
         merit: 0,
-        bonus: 0,
-        canBeZero: true
+        bonus: 0
       }
     ];
 
@@ -242,12 +213,6 @@
 
     let meritRemaining = START_MERIT;
     let bonusRemaining = START_BONUS;
-
-    // Completion state
-    let markedDone = false;
-
-    // Selected employee for compare
-    let selectedEmpName = null;
 
     const fmt = (n) => n.toLocaleString("en-US", {
       style: "currency",
@@ -260,20 +225,8 @@
     const elRows = document.getElementById("rows");
     const elWarning = document.getElementById("warning");
     const elResetBtn = document.getElementById("resetBtn");
-    const elDoneBtn = document.getElementById("doneBtn");
 
-    const elCompareWrap = document.getElementById("compareWrap");
-    const elCompareTitle = document.getElementById("compareTitle");
-    const elYourMerit = document.getElementById("yourMerit");
-    const elRecMerit = document.getElementById("recMerit");
-    const elDiffMerit = document.getElementById("diffMerit");
-    const elYourBonus = document.getElementById("yourBonus");
-    const elRecBonus = document.getElementById("recBonus");
-    const elDiffBonus = document.getElementById("diffBonus");
-
-    const required = [elMeritRemaining, elBonusRemaining, elRows, elWarning, elResetBtn, elDoneBtn,
-                      elCompareWrap, elCompareTitle, elYourMerit, elRecMerit, elDiffMerit, elYourBonus, elRecBonus, elDiffBonus];
-
+    const required = [elMeritRemaining, elBonusRemaining, elRows, elWarning, elResetBtn];
     if (required.some(x => !x)) {
       throw new Error("One or more required elements are missing from the page. (IDs changed or HTML not pasted fully.)");
     }
@@ -282,67 +235,22 @@
       elWarning.textContent = msg || "";
     }
 
-    // Completion gate:
-    // - Most employees must have >= $500 total across merit+bonus
-    // - Emilio may be $0
-    function hasAllocatedToEachEmployee() {
-      return employees.every(e => {
-        if (e.canBeZero) return true;
-        return (e.merit + e.bonus) >= DENOMINATION;
-      });
-    }
-
-    function updateComparison(empName) {
-      const emp = employees.find(e => e.empName === empName);
-      const rec = recommended[empName];
-      if (!emp || !rec) return;
-
-      elCompareWrap.style.display = "block";
-      elCompareTitle.textContent = `Compare allocations: ${empName}`;
-
-      elYourMerit.textContent = fmt(emp.merit);
-      elYourBonus.textContent = fmt(emp.bonus);
-
-      elRecMerit.textContent = fmt(rec.merit);
-      elRecBonus.textContent = fmt(rec.bonus);
-
-      const dM = emp.merit - rec.merit;
-      const dB = emp.bonus - rec.bonus;
-
-      const fmtDiff = (d) => {
-        const sign = d > 0 ? "+" : "";
-        return `${sign}${fmt(d)}`.replace("$-", "-$");
-      };
-
-      elDiffMerit.textContent = fmtDiff(dM);
-      elDiffBonus.textContent = fmtDiff(dB);
-
-      elDiffMerit.classList.remove("good","bad");
-      elDiffBonus.classList.remove("good","bad");
-      elDiffMerit.classList.add(dM === 0 ? "good" : "bad");
-      elDiffBonus.classList.add(dB === 0 ? "good" : "bad");
+    function rangeText(lowHigh) {
+      const low = lowHigh[0];
+      const high = lowHigh[1];
+      return `${fmt(low)}-${fmt(high)}`;
     }
 
     function render() {
       elMeritRemaining.textContent = fmt(meritRemaining);
       elBonusRemaining.textContent = fmt(bonusRemaining);
 
-      const readyForDone = hasAllocatedToEachEmployee();
-
-      // Show Finished only when gate satisfied OR already marked done
-      elDoneBtn.style.display = (readyForDone || markedDone) ? "inline-block" : "none";
-      elDoneBtn.disabled = markedDone;
-      elDoneBtn.textContent = markedDone ? "Finished ✓" : "Finished";
-
-      // Build table rows
       elRows.innerHTML = "";
 
       employees.forEach((e, idx) => {
-        const tr = document.createElement("tr");
-        tr.dataset.emp = e.empName;
+        const r = budgetRanges[e.empName];
 
-        if (markedDone) tr.classList.add("clickable");
-        if (selectedEmpName === e.empName) tr.classList.add("selected");
+        const tr = document.createElement("tr");
 
         // Employee column
         const tdEmp = document.createElement("td");
@@ -373,9 +281,10 @@
           <div class="muted">Allocated</div>
           <div class="tot">${fmt(e.merit)}</div>
           <div class="btns">
-            <button class="btn" ${markedDone || meritRemaining < DENOMINATION ? "disabled" : ""} data-action="meritPlus" data-idx="${idx}">+ $500</button>
-            <button class="btn" ${markedDone || e.merit < DENOMINATION ? "disabled" : ""} data-action="meritMinus" data-idx="${idx}">– $500</button>
+            <button class="btn" ${meritRemaining < DENOMINATION ? "disabled" : ""} data-action="meritPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${e.merit < DENOMINATION ? "disabled" : ""} data-action="meritMinus" data-idx="${idx}">– $500</button>
           </div>
+          ${r ? `<div class="rangeNote">Merit Budget Range: ${rangeText(r.merit)}</div>` : ``}
         `;
         tr.appendChild(tdMerit);
 
@@ -385,9 +294,10 @@
           <div class="muted">Allocated</div>
           <div class="tot">${fmt(e.bonus)}</div>
           <div class="btns">
-            <button class="btn" ${markedDone || bonusRemaining < DENOMINATION ? "disabled" : ""} data-action="bonusPlus" data-idx="${idx}">+ $500</button>
-            <button class="btn" ${markedDone || e.bonus < DENOMINATION ? "disabled" : ""} data-action="bonusMinus" data-idx="${idx}">– $500</button>
+            <button class="btn" ${bonusRemaining < DENOMINATION ? "disabled" : ""} data-action="bonusPlus" data-idx="${idx}">+ $500</button>
+            <button class="btn" ${e.bonus < DENOMINATION ? "disabled" : ""} data-action="bonusMinus" data-idx="${idx}">– $500</button>
           </div>
+          ${r ? `<div class="rangeNote">Bonus Budget Range: ${rangeText(r.bonus)}</div>` : ``}
         `;
         tr.appendChild(tdBonus);
 
@@ -397,10 +307,6 @@
 
     function adjust(idx, type, delta) {
       setWarning("");
-
-      if (markedDone) {
-        return setWarning("You marked this as finished. Click Reset allocations to make changes.");
-      }
 
       if (type === "merit") {
         if (delta > 0 && meritRemaining < DENOMINATION) return setWarning("Merit pot is empty.");
@@ -433,42 +339,11 @@
       if (action === "bonusMinus") adjust(idx, "bonus", -DENOMINATION);
     });
 
-    // Employee card click AFTER Finished
-    elRows.addEventListener("click", (ev) => {
-      const row = ev.target.closest("tr");
-      if (!row) return;
-
-      const empName = row.dataset.emp;
-      if (!empName) return;
-
-      if (!markedDone) return; // no-op before finished
-
-      selectedEmpName = empName;
-      render();
-      updateComparison(empName);
-    });
-
-    // Finished button
-    elDoneBtn.addEventListener("click", () => {
-      if (!hasAllocatedToEachEmployee()) {
-        setWarning("Allocate funds to each employee before clicking “Finished”.");
-        return;
-      }
-      markedDone = true;
-      setWarning("Click an employee card to compare your budget with the recommended answers.");
-      selectedEmpName = null;
-      elCompareWrap.style.display = "none";
-      render();
-    });
-
     // Reset
     elResetBtn.addEventListener("click", () => {
       employees.forEach(e => { e.merit = 0; e.bonus = 0; });
       meritRemaining = START_MERIT;
       bonusRemaining = START_BONUS;
-      markedDone = false;
-      selectedEmpName = null;
-      elCompareWrap.style.display = "none";
       setWarning("");
       render();
     });
