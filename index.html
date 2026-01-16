@@ -1,258 +1,337 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Compensation Planning Activity</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Compensation Planning Activity</title>
 
-  <style>
-    :root{
-      --border:#ddd;
-      --border2:#eee;
-      --text:#000;
-      --muted:#555;
-      --danger:#b00020;
-      --bg:#fff;
-      --card:#fff;
-      --radius:12px;
-      --pad:14px;
-      --tap:44px;
-    }
+<style>
+:root{
+  --border:#ddd;
+  --border2:#eee;
+  --text:#000;
+  --muted:#555;
+  --danger:#b00020;
+  --bg:#fff;
+  --card:#fff;
+  --radius:12px;
+  --pad:14px;
+  --tap:44px;
+}
 
-    body{
-      font-family: "Arial Nova", Arial, Helvetica, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-    }
+body{
+  font-family:"Arial Nova", Arial, Helvetica, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
 
-    .wrap{
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px;
-      box-sizing: border-box;
-    }
+.wrap{
+  max-width:1100px;
+  margin:0 auto;
+  padding:12px;
+  box-sizing:border-box;
+}
 
-    /* ===== TOP TITLE ===== */
-    .pageTitle{
-      font-size: 24px;
-      font-weight: 800; /* bold per request */
-      margin: 4px 0 12px 0;
-      line-height: 1.2;
-    }
+.pageTitle{
+  font-size:24px;
+  font-weight:800;
+  margin:4px 0 12px;
+}
 
-    .card{
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: var(--pad);
-      background: var(--card);
-    }
+.card{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:var(--pad);
+  background:var(--card);
+}
 
-    .big{
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0 0 6px 0;
-      line-height: 1.2;
-    }
+.big{
+  font-size:20px;
+  font-weight:700;
+  margin-bottom:6px;
+}
 
-    .muted{
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
-    }
+.muted{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+}
 
-    .tot{
-      font-weight: 700;
-      margin-top: 2px;
-      font-size: 20px;
-      line-height: 1.1;
-    }
+.tot{
+  font-weight:700;
+  font-size:22px;
+}
 
-    .pots{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin: 12px 0;
-    }
+.pots{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:12px 0;
+}
 
-    .potLabel{
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
+.potLabel{
+  font-size:14px;
+  font-weight:800;
+  margin-bottom:4px;
+}
 
-    .potCard .tot{ font-size: 26px; }
+.btn{
+  min-height:var(--tap);
+  padding:8px 12px;
+  border:1px solid #ccc;
+  border-radius:10px;
+  background:#fff;
+  cursor:pointer;
+  font-size:15px;
+  font-family:inherit;
+}
 
-    .btn{
-      min-height: var(--tap);
-      padding: 8px 12px;
-      border: 1px solid #cfcfcf;
-      border-radius: 10px;
-      background: #fff;
-      cursor: pointer;
-      font-size: 15px;
-      font-family: inherit;
-    }
+.btn:disabled{
+  opacity:.35;
+  cursor:not-allowed;
+}
 
-    .btn:disabled{
-      opacity: .35;
-      cursor: not-allowed;
-    }
+.btns{
+  display:flex;
+  gap:10px;
+  margin-top:8px;
+  flex-wrap:wrap;
+}
 
-    .btns{
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
+.rowTitle{
+  font-weight:800;
+  font-size:16px;
+}
 
-    .footer{
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
+.meta{
+  font-size:12px;
+  margin-top:6px;
+}
 
-    .warn{
-      color: var(--danger);
-      font-size: 12px;
-    }
+.meta .label{ color:var(--muted); }
+.meta .value{ font-weight:800; }
+.meta .note{ font-style:italic; margin-top:4px; color:var(--muted); }
 
-    .rowTitle{
-      font-weight: 800;
-      margin-bottom: 2px;
-      font-size: 16px;
-    }
+.rangeNote{
+  font-size:12px;
+  font-style:italic;
+  margin-top:6px;
+}
 
-    .meta{
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.35;
-    }
+.tableCard{ padding:0; overflow:hidden; }
 
-    .meta .label{ color: var(--muted); }
-    .meta .value{ font-weight: 800; }
-    .meta .note{ font-style: italic; margin-top: 4px; }
+.tableHeaderPad{
+  padding:var(--pad);
+  border-bottom:1px solid var(--border2);
+}
 
-    .rangeNote{
-      margin-top: 8px;
-      font-size: 12px;
-      font-style: italic;
-    }
+.tableScroll{
+  max-height:520px;
+  overflow:auto;
+}
 
-    .tableCard{ padding: 0; overflow: hidden; }
+table{
+  width:100%;
+  border-collapse:collapse;
+}
 
-    .tableHeaderPad{
-      padding: var(--pad);
-      border-bottom: 1px solid var(--border2);
-    }
+th,td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border2);
+  vertical-align:top;
+}
 
-    .tableScroll{
-      max-height: 520px;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+th{
+  font-size:13px;
+  font-weight:800;
+  background:#fff;
+  position:sticky;
+  top:0;
+}
 
-    table{
-      width: 100%;
-      border-collapse: collapse;
-    }
+.mobileOnly{ display:none; }
+.desktopOnly{ display:block; }
 
-    th, td{
-      border-bottom: 1px solid var(--border2);
-      padding: 10px 12px;
-      vertical-align: top;
-    }
+.empCard{
+  border-bottom:1px solid var(--border2);
+  padding:12px;
+}
 
-    th{
-      text-align: left;
-      font-size: 13px;
-      font-weight: 800;
-      background: #fff;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
+.subCard{
+  border:1px solid var(--border2);
+  border-radius:12px;
+  padding:10px;
+  margin-top:10px;
+}
 
-    .mobileOnly{ display:none; }
-    .desktopOnly{ display:block; }
+.allocNum{
+  font-size:22px;
+  font-weight:900;
+}
 
-    @media (max-width: 860px){
-      .pots{ grid-template-columns: 1fr; }
-    }
+@media(max-width:860px){
+  .pots{ grid-template-columns:1fr; }
+}
 
-    @media (max-width: 640px){
-      .desktopOnly{ display:none; }
-      .mobileOnly{ display:block; }
-      .tableScroll{ max-height: 420px; }
-      .pageTitle{ font-size: 20px; }
-    }
-  </style>
+@media(max-width:640px){
+  .desktopOnly{ display:none; }
+  .mobileOnly{ display:block; }
+  .tableScroll{ max-height:420px; }
+}
+</style>
 </head>
 
 <body>
 <div class="wrap">
 
-  <!-- PAGE TITLE -->
-  <div class="pageTitle">Compensation planning activity</div>
+<div class="pageTitle">Compensation planning activity</div>
 
-  <!-- INSTRUCTIONS -->
+<div class="card">
+  <div class="big">Allocate funds to your team</div>
+  <div class="muted">
+    Use the +$500 / –$500 buttons to allocate merit and bonus funds to your employees.
+    Totals update automatically. You do not need to use your entire merit or bonus budgets.
+  </div>
+</div>
+
+<div class="pots">
   <div class="card">
-    <div class="big">Allocate funds to your team</div>
-    <div class="muted">
-      Use the +$500 / –$500 buttons to allocate merit and bonus funds to your employees. Totals update automatically.
-      You do not need to use your entire merit or bonus budgets.
-    </div>
+    <div class="potLabel">Merit pot remaining</div>
+    <div id="meritRemaining" class="tot">$0</div>
+    <div class="muted">Allocations must be in $500 increments.</div>
+  </div>
+  <div class="card">
+    <div class="potLabel">Bonus pot remaining</div>
+    <div id="bonusRemaining" class="tot">$0</div>
+    <div class="muted">Allocations must be in $500 increments.</div>
+  </div>
+</div>
+
+<div class="card tableCard">
+  <div class="tableHeaderPad">
+    <button class="btn" id="resetBtn">Reset allocations</button>
   </div>
 
-  <!-- POTS -->
-  <div class="pots">
-    <div class="card potCard">
-      <div class="potLabel">Merit pot remaining</div>
-      <div id="meritRemaining" class="tot">$0</div>
-      <div class="muted">Allocations must be in $500 increments.</div>
+  <div class="tableScroll">
+    <div class="desktopOnly">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Context</th>
+            <th>Merit</th>
+            <th>Bonus</th>
+          </tr>
+        </thead>
+        <tbody id="rowsDesktop"></tbody>
+      </table>
     </div>
 
-    <div class="card potCard">
-      <div class="potLabel">Bonus pot remaining</div>
-      <div id="bonusRemaining" class="tot">$0</div>
-      <div class="muted">Allocations must be in $500 increments.</div>
-    </div>
+    <div class="mobileOnly" id="rowsMobile"></div>
   </div>
-
-  <!-- TABLE / MOBILE CONTENT (unchanged logic) -->
-  <div class="card tableCard">
-    <div class="tableHeaderPad">
-      <div class="footer" style="margin:0;">
-        <button class="btn" id="resetBtn">Reset allocations</button>
-        <span class="warn" id="warning"></span>
-      </div>
-    </div>
-
-    <div class="tableScroll">
-      <div class="desktopOnly">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:32%;">Employee</th>
-              <th style="width:28%;">Context</th>
-              <th style="width:20%;">Merit</th>
-              <th style="width:20%;">Bonus</th>
-            </tr>
-          </thead>
-          <tbody id="rowsDesktop"></tbody>
-        </table>
-      </div>
-
-      <div class="mobileOnly" id="rowsMobile"></div>
-    </div>
-  </div>
+</div>
 
 </div>
 
 <script>
-/* JS unchanged from previous responsive version */
+const DENOM=500;
+const START_MERIT=13500;
+const START_BONUS=32000;
+
+const ranges={
+ Ines:{merit:[2000,4000],bonus:[4000,5500]},
+ Ananya:{merit:[1000,3000],bonus:[3500,5500]},
+ Jace:{merit:[1500,3000],bonus:[4500,5500]},
+ Miles:{merit:[0,2000],bonus:[0,6500]},
+ Emilio:{merit:[0,1000],bonus:[0,2500]}
+};
+
+const emps=[
+ {n:"Ines",t:"Business Analyst",p:70000,r:"Exceptional",rel:"Competitive",note:"Filled in for maternity leave",m:0,b:0},
+ {n:"Ananya",t:"Sr Business Analyst",p:80000,r:"Successful",rel:"Low",note:"",m:0,b:0},
+ {n:"Jace",t:"Sr Business Analyst",p:85000,r:"Successful",rel:"Competitive",note:"",m:0,b:0},
+ {n:"Miles",t:"Business Manager",p:130000,r:"Improve",rel:"Competitive",note:"",m:0,b:0},
+ {n:"Emilio",t:"Business Analyst",p:80000,r:"Improve",rel:"High",note:"",m:0,b:0}
+];
+
+let merit=START_MERIT, bonus=START_BONUS;
+
+const fmt=n=>n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
+const rowsD=document.getElementById("rowsDesktop");
+const rowsM=document.getElementById("rowsMobile");
+
+function render(){
+ document.getElementById("meritRemaining").textContent=fmt(merit);
+ document.getElementById("bonusRemaining").textContent=fmt(bonus);
+ rowsD.innerHTML=""; rowsM.innerHTML="";
+
+ emps.forEach((e,i)=>{
+  const r=ranges[e.n];
+
+  rowsD.innerHTML+=`
+  <tr>
+    <td><div class="rowTitle">${e.n}</div><div class="muted">${e.t}</div>
+      <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div></td>
+    <td><div class="tot">${fmt(e.p)}</div>
+      <div class="meta"><span class="label">Pay relative:</span> <span class="value">${e.rel}</span>${e.note?`<div class="note">${e.note}</div>`:""}</div></td>
+    <td><div class="tot">${fmt(e.m)}</div>
+      <div class="btns">
+        <button class="btn" onclick="chg(${i},'m',1)" ${merit<DENOM?"disabled":""}>+ $500</button>
+        <button class="btn" onclick="chg(${i},'m',-1)" ${e.m<DENOM?"disabled":""}>– $500</button>
+      </div>
+      <div class="rangeNote">Merit Budget Range: ${fmt(r.merit[0])}-${fmt(r.merit[1])}</div></td>
+    <td><div class="tot">${fmt(e.b)}</div>
+      <div class="btns">
+        <button class="btn" onclick="chg(${i},'b',1)" ${bonus<DENOM?"disabled":""}>+ $500</button>
+        <button class="btn" onclick="chg(${i},'b',-1)" ${e.b<DENOM?"disabled":""}>– $500</button>
+      </div>
+      <div class="rangeNote">Bonus Budget Range: ${fmt(r.bonus[0])}-${fmt(r.bonus[1])}</div></td>
+  </tr>`;
+
+  rowsM.innerHTML+=`
+  <div class="empCard">
+    <div class="rowTitle">${e.n}</div>
+    <div class="muted">${e.t}</div>
+    <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div>
+    <div class="subCard">
+      <div class="allocNum">${fmt(e.m)}</div>
+      <div class="btns">
+        <button class="btn" onclick="chg(${i},'m',1)" ${merit<DENOM?"disabled":""}>+ $500</button>
+        <button class="btn" onclick="chg(${i},'m',-1)" ${e.m<DENOM?"disabled":""}>– $500</button>
+      </div>
+    </div>
+    <div class="subCard">
+      <div class="allocNum">${fmt(e.b)}</div>
+      <div class="btns">
+        <button class="btn" onclick="chg(${i},'b',1)" ${bonus<DENOM?"disabled":""}>+ $500</button>
+        <button class="btn" onclick="chg(${i},'b',-1)" ${e.b<DENOM?"disabled":""}>– $500</button>
+      </div>
+    </div>
+  </div>`;
+ });
+}
+
+function chg(i,type,dir){
+ if(type==="m"){
+  if(dir>0&&merit<DENOM) return;
+  if(dir<0&&emps[i].m<DENOM) return;
+  emps[i].m+=dir*DENOM; merit-=dir*DENOM;
+ }
+ if(type==="b"){
+  if(dir>0&&bonus<DENOM) return;
+  if(dir<0&&emps[i].b<DENOM) return;
+  emps[i].b+=dir*DENOM; bonus-=dir*DENOM;
+ }
+ render();
+}
+
+document.getElementById("resetBtn").onclick=()=>{
+ emps.forEach(e=>{e.m=0;e.b=0});
+ merit=START_MERIT; bonus=START_BONUS; render();
+};
+
+render();
 </script>
 
 </body>
