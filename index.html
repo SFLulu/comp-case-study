@@ -3,15 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Compensation Planning Activity</title>
+<title>Compensation planning activity</title>
 
 <style>
 :root{
   --border:#ddd;
   --border2:#eee;
   --text:#000;
-  --muted:#555;
-  --danger:#b00020;
   --bg:#fff;
   --card:#fff;
   --radius:12px;
@@ -34,8 +32,8 @@ body{
 }
 
 .pageTitle{
-  font-size:24px;
-  font-weight:800;
+  font-size:28px;
+  font-weight:900;
   margin:4px 0 12px;
 }
 
@@ -48,18 +46,18 @@ body{
 
 .big{
   font-size:20px;
-  font-weight:700;
+  font-weight:800;
   margin-bottom:6px;
 }
 
-.muted{
-  color:var(--muted);
+.bodytext{
+  color:var(--text);
   font-size:13px;
   line-height:1.35;
 }
 
 .tot{
-  font-weight:700;
+  font-weight:800;
   font-size:22px;
 }
 
@@ -70,14 +68,19 @@ body{
   margin:12px 0;
 }
 
+/* Stack only on true small mobile */
+@media(max-width:520px){
+  .pots{ grid-template-columns:1fr; }
+}
+
 .potLabel{
   font-size:14px;
-  font-weight:800;
+  font-weight:900;
   margin-bottom:4px;
 }
 
 .btn{
-  min-height:var(--tap);
+  min-height:40px;
   padding:8px 12px;
   border:1px solid #ccc;
   border-radius:10px;
@@ -85,6 +88,8 @@ body{
   cursor:pointer;
   font-size:15px;
   font-family:inherit;
+  line-height:1;
+  color:var(--text);
 }
 
 .btn:disabled{
@@ -96,27 +101,37 @@ body{
   display:flex;
   gap:10px;
   margin-top:8px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap; /* keep +/- on one line where possible */
+}
+
+@media(max-width:980px){
+  .btns{ flex-wrap:wrap; }
 }
 
 .rowTitle{
-  font-weight:800;
-  font-size:16px;
+  font-weight:900;
+  font-size:18px;
 }
 
 .meta{
   font-size:12px;
   margin-top:6px;
+  color:var(--text);
 }
 
-.meta .label{ color:var(--muted); }
-.meta .value{ font-weight:800; }
-.meta .note{ font-style:italic; margin-top:4px; color:var(--muted); }
+.meta .label{ color:var(--text); font-weight:400; }
+.meta .value{ font-weight:800; color:var(--text); }
+.meta .note{
+  font-style:italic;
+  margin-top:4px;
+  color:var(--text);
+}
 
 .rangeNote{
   font-size:12px;
   font-style:italic;
   margin-top:6px;
+  color:var(--text);
 }
 
 .tableCard{ padding:0; overflow:hidden; }
@@ -129,25 +144,33 @@ body{
 .tableScroll{
   max-height:520px;
   overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  background:#fff;
 }
 
 table{
   width:100%;
   border-collapse:collapse;
+  table-layout:fixed;
 }
+
+col.colEmp{ width:26%; }
+col.colCtx{ width:30%; }
+col.colMerit{ width:22%; }
+col.colBonus{ width:22%; }
 
 th,td{
   padding:10px 12px;
   border-bottom:1px solid var(--border2);
   vertical-align:top;
+  color:var(--text);
 }
 
 th{
   font-size:13px;
-  font-weight:800;
+  font-weight:900;
   background:#fff;
-  position:sticky;
-  top:0;
+  position:static; /* avoid sticky clipping inside Genially iframes */
 }
 
 .mobileOnly{ display:none; }
@@ -170,14 +193,11 @@ th{
   font-weight:900;
 }
 
-@media(max-width:860px){
-  .pots{ grid-template-columns:1fr; }
-}
-
 @media(max-width:640px){
   .desktopOnly{ display:none; }
   .mobileOnly{ display:block; }
   .tableScroll{ max-height:420px; }
+  .btns{ flex-wrap:wrap; }
 }
 </style>
 </head>
@@ -185,150 +205,200 @@ th{
 <body>
 <div class="wrap">
 
-<div class="pageTitle">Compensation planning activity</div>
+  <div class="pageTitle">Compensation planning activity</div>
 
-<div class="card">
-  <div class="big">Allocate funds to your team</div>
-  <div class="muted">
-    Use the +$500 / –$500 buttons to allocate merit and bonus funds to your employees.
-    Totals update automatically. You do not need to use your entire merit or bonus budgets.
-  </div>
-</div>
-
-<div class="pots">
   <div class="card">
-    <div class="potLabel">Merit pot remaining</div>
-    <div id="meritRemaining" class="tot">$0</div>
-    <div class="muted">Allocations must be in $500 increments.</div>
-  </div>
-  <div class="card">
-    <div class="potLabel">Bonus pot remaining</div>
-    <div id="bonusRemaining" class="tot">$0</div>
-    <div class="muted">Allocations must be in $500 increments.</div>
-  </div>
-</div>
-
-<div class="card tableCard">
-  <div class="tableHeaderPad">
-    <button class="btn" id="resetBtn">Reset allocations</button>
+    <div class="big">Allocate funds to your team</div>
+    <div class="bodytext">
+      Use the +$500 / –$500 buttons to allocate merit and bonus funds to your employees. Totals update automatically.
+      You do not need to use your entire merit or bonus budgets.
+    </div>
   </div>
 
-  <div class="tableScroll">
-    <div class="desktopOnly">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Context</th>
-            <th>Merit</th>
-            <th>Bonus</th>
-          </tr>
-        </thead>
-        <tbody id="rowsDesktop"></tbody>
-      </table>
+  <div class="pots">
+    <div class="card">
+      <div class="potLabel">Merit budget remaining</div>
+      <div id="meritRemaining" class="tot">$0</div>
+      <div class="bodytext">Allocations must be in $500 increments.</div>
+    </div>
+    <div class="card">
+      <div class="potLabel">Bonus budget remaining</div>
+      <div id="bonusRemaining" class="tot">$0</div>
+      <div class="bodytext">Allocations must be in $500 increments.</div>
+    </div>
+  </div>
+
+  <div class="card tableCard">
+    <div class="tableHeaderPad">
+      <button class="btn" id="resetBtn">Reset allocations</button>
     </div>
 
-    <div class="mobileOnly" id="rowsMobile"></div>
+    <div class="tableScroll">
+      <div class="desktopOnly">
+        <table>
+          <colgroup>
+            <col class="colEmp" />
+            <col class="colCtx" />
+            <col class="colMerit" />
+            <col class="colBonus" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Context</th>
+              <th>Merit</th>
+              <th>Bonus</th>
+            </tr>
+          </thead>
+          <tbody id="rowsDesktop"></tbody>
+        </table>
+      </div>
+
+      <div class="mobileOnly" id="rowsMobile"></div>
+    </div>
   </div>
-</div>
 
 </div>
 
 <script>
-const DENOM=500;
-const START_MERIT=13500;
-const START_BONUS=32000;
+const DENOM = 500;
+const START_MERIT = 13500;
+const START_BONUS = 32000;
 
-const ranges={
- Ines:{merit:[2000,4000],bonus:[4000,5500]},
- Ananya:{merit:[1000,3000],bonus:[3500,5500]},
- Jace:{merit:[1500,3000],bonus:[4500,5500]},
- Miles:{merit:[0,2000],bonus:[0,6500]},
- Emilio:{merit:[0,1000],bonus:[0,2500]}
+const ranges = {
+  Ines:   { merit:[2000,4000], bonus:[4000,5500] },
+  Ananya: { merit:[1000,3000], bonus:[3500,5500] },
+  Jace:   { merit:[1500,3000], bonus:[4500,5500] },
+  Miles:  { merit:[0,2000],    bonus:[0,6500]    },
+  Emilio: { merit:[0,1000],    bonus:[0,2500]    }
 };
 
-const emps=[
- {n:"Ines",t:"Business Analyst",p:70000,r:"Exceptional",rel:"Competitive",note:"Filled in for maternity leave",m:0,b:0},
- {n:"Ananya",t:"Sr Business Analyst",p:80000,r:"Successful",rel:"Low",note:"",m:0,b:0},
- {n:"Jace",t:"Sr Business Analyst",p:85000,r:"Successful",rel:"Competitive",note:"",m:0,b:0},
- {n:"Miles",t:"Business Manager",p:130000,r:"Improve",rel:"Competitive",note:"",m:0,b:0},
- {n:"Emilio",t:"Business Analyst",p:80000,r:"Improve",rel:"High",note:"",m:0,b:0}
+const emps = [
+  { n:"Ines",   t:"Business Analyst",    p:70000,  r:"Exceptional", rel:"Competitive", note:"Filled in for maternity leave", m:0, b:0 },
+  { n:"Ananya", t:"Sr Business Analyst", p:80000,  r:"Successful",  rel:"Low",         note:"", m:0, b:0 },
+  { n:"Jace",   t:"Sr Business Analyst", p:85000,  r:"Successful",  rel:"Competitive", note:"", m:0, b:0 },
+  { n:"Miles",  t:"Business Manager",    p:130000, r:"Improve",     rel:"Competitive",
+    note:"Lacking motivation but still a strong performer who you want to retain despite improve rating", m:0, b:0 },
+  { n:"Emilio", t:"Business Analyst",    p:80000,  r:"Improve",     rel:"High",
+    note:"New to role and is still learning", m:0, b:0 }
 ];
 
-let merit=START_MERIT, bonus=START_BONUS;
+let merit = START_MERIT;
+let bonus = START_BONUS;
 
-const fmt=n=>n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
-const rowsD=document.getElementById("rowsDesktop");
-const rowsM=document.getElementById("rowsMobile");
+const fmt = n => n.toLocaleString("en-US", { style:"currency", currency:"USD", maximumFractionDigits:0 });
+
+const rowsD = document.getElementById("rowsDesktop");
+const rowsM = document.getElementById("rowsMobile");
 
 function render(){
- document.getElementById("meritRemaining").textContent=fmt(merit);
- document.getElementById("bonusRemaining").textContent=fmt(bonus);
- rowsD.innerHTML=""; rowsM.innerHTML="";
+  document.getElementById("meritRemaining").textContent = fmt(merit);
+  document.getElementById("bonusRemaining").textContent = fmt(bonus);
 
- emps.forEach((e,i)=>{
-  const r=ranges[e.n];
+  rowsD.innerHTML = "";
+  rowsM.innerHTML = "";
 
-  rowsD.innerHTML+=`
-  <tr>
-    <td><div class="rowTitle">${e.n}</div><div class="muted">${e.t}</div>
-      <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div></td>
-    <td><div class="tot">${fmt(e.p)}</div>
-      <div class="meta"><span class="label">Pay relative:</span> <span class="value">${e.rel}</span>${e.note?`<div class="note">${e.note}</div>`:""}</div></td>
-    <td><div class="tot">${fmt(e.m)}</div>
-      <div class="btns">
-        <button class="btn" onclick="chg(${i},'m',1)" ${merit<DENOM?"disabled":""}>+ $500</button>
-        <button class="btn" onclick="chg(${i},'m',-1)" ${e.m<DENOM?"disabled":""}>– $500</button>
-      </div>
-      <div class="rangeNote">Merit Budget Range: ${fmt(r.merit[0])}-${fmt(r.merit[1])}</div></td>
-    <td><div class="tot">${fmt(e.b)}</div>
-      <div class="btns">
-        <button class="btn" onclick="chg(${i},'b',1)" ${bonus<DENOM?"disabled":""}>+ $500</button>
-        <button class="btn" onclick="chg(${i},'b',-1)" ${e.b<DENOM?"disabled":""}>– $500</button>
-      </div>
-      <div class="rangeNote">Bonus Budget Range: ${fmt(r.bonus[0])}-${fmt(r.bonus[1])}</div></td>
-  </tr>`;
+  emps.forEach((e,i)=>{
+    const r = ranges[e.n];
 
-  rowsM.innerHTML+=`
-  <div class="empCard">
-    <div class="rowTitle">${e.n}</div>
-    <div class="muted">${e.t}</div>
-    <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div>
-    <div class="subCard">
-      <div class="allocNum">${fmt(e.m)}</div>
-      <div class="btns">
-        <button class="btn" onclick="chg(${i},'m',1)" ${merit<DENOM?"disabled":""}>+ $500</button>
-        <button class="btn" onclick="chg(${i},'m',-1)" ${e.m<DENOM?"disabled":""}>– $500</button>
+    rowsD.innerHTML += `
+      <tr>
+        <td>
+          <div class="rowTitle">${e.n}</div>
+          <div class="bodytext">${e.t}</div>
+          <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div>
+        </td>
+
+        <td>
+          <div class="bodytext">Base pay</div>
+          <div class="tot">${fmt(e.p)}</div>
+          <div class="meta"><span class="label">Pay relative:</span> <span class="value">${e.rel}</span></div>
+          ${e.note ? `<div class="meta note">${e.note}</div>` : ``}
+        </td>
+
+        <td>
+          <div class="bodytext">Allocated</div>
+          <div class="tot">${fmt(e.m)}</div>
+          <div class="btns">
+            <button class="btn" onclick="chg(${i},'m',1)" ${merit < DENOM ? "disabled" : ""}>+ $500</button>
+            <button class="btn" onclick="chg(${i},'m',-1)" ${e.m < DENOM ? "disabled" : ""}>– $500</button>
+          </div>
+          <div class="rangeNote">Merit Budget Range: ${fmt(r.merit[0])}-${fmt(r.merit[1])}</div>
+        </td>
+
+        <td>
+          <div class="bodytext">Allocated</div>
+          <div class="tot">${fmt(e.b)}</div>
+          <div class="btns">
+            <button class="btn" onclick="chg(${i},'b',1)" ${bonus < DENOM ? "disabled" : ""}>+ $500</button>
+            <button class="btn" onclick="chg(${i},'b',-1)" ${e.b < DENOM ? "disabled" : ""}>– $500</button>
+          </div>
+          <div class="rangeNote">Bonus Budget Range: ${fmt(r.bonus[0])}-${fmt(r.bonus[1])}</div>
+        </td>
+      </tr>
+    `;
+
+    rowsM.innerHTML += `
+      <div class="empCard">
+        <div class="rowTitle">${e.n}</div>
+        <div class="bodytext">${e.t}</div>
+        <div class="meta"><span class="label">Performance:</span> <span class="value">${e.r}</span></div>
+
+        <div class="subCard">
+          <div class="bodytext" style="font-weight:900;">Context</div>
+          <div class="bodytext">Base pay</div>
+          <div class="tot">${fmt(e.p)}</div>
+          <div class="meta"><span class="label">Pay relative:</span> <span class="value">${e.rel}</span></div>
+          ${e.note ? `<div class="meta note">${e.note}</div>` : ``}
+        </div>
+
+        <div class="subCard">
+          <div class="bodytext" style="font-weight:900;">Merit</div>
+          <div class="bodytext">Allocated</div>
+          <div class="allocNum">${fmt(e.m)}</div>
+          <div class="btns">
+            <button class="btn" onclick="chg(${i},'m',1)" ${merit < DENOM ? "disabled" : ""}>+ $500</button>
+            <button class="btn" onclick="chg(${i},'m',-1)" ${e.m < DENOM ? "disabled" : ""}>– $500</button>
+          </div>
+          <div class="rangeNote">Merit Budget Range: ${fmt(r.merit[0])}-${fmt(r.merit[1])}</div>
+        </div>
+
+        <div class="subCard">
+          <div class="bodytext" style="font-weight:900;">Bonus</div>
+          <div class="bodytext">Allocated</div>
+          <div class="allocNum">${fmt(e.b)}</div>
+          <div class="btns">
+            <button class="btn" onclick="chg(${i},'b',1)" ${bonus < DENOM ? "disabled" : ""}>+ $500</button>
+            <button class="btn" onclick="chg(${i},'b',-1)" ${e.b < DENOM ? "disabled" : ""}>– $500</button>
+          </div>
+          <div class="rangeNote">Bonus Budget Range: ${fmt(r.bonus[0])}-${fmt(r.bonus[1])}</div>
+        </div>
       </div>
-    </div>
-    <div class="subCard">
-      <div class="allocNum">${fmt(e.b)}</div>
-      <div class="btns">
-        <button class="btn" onclick="chg(${i},'b',1)" ${bonus<DENOM?"disabled":""}>+ $500</button>
-        <button class="btn" onclick="chg(${i},'b',-1)" ${e.b<DENOM?"disabled":""}>– $500</button>
-      </div>
-    </div>
-  </div>`;
- });
+    `;
+  });
 }
 
-function chg(i,type,dir){
- if(type==="m"){
-  if(dir>0&&merit<DENOM) return;
-  if(dir<0&&emps[i].m<DENOM) return;
-  emps[i].m+=dir*DENOM; merit-=dir*DENOM;
- }
- if(type==="b"){
-  if(dir>0&&bonus<DENOM) return;
-  if(dir<0&&emps[i].b<DENOM) return;
-  emps[i].b+=dir*DENOM; bonus-=dir*DENOM;
- }
- render();
+function chg(i, type, dir){
+  if(type === "m"){
+    if(dir > 0 && merit < DENOM) return;
+    if(dir < 0 && emps[i].m < DENOM) return;
+    emps[i].m += dir * DENOM;
+    merit -= dir * DENOM;
+  }
+  if(type === "b"){
+    if(dir > 0 && bonus < DENOM) return;
+    if(dir < 0 && emps[i].b < DENOM) return;
+    emps[i].b += dir * DENOM;
+    bonus -= dir * DENOM;
+  }
+  render();
 }
 
-document.getElementById("resetBtn").onclick=()=>{
- emps.forEach(e=>{e.m=0;e.b=0});
- merit=START_MERIT; bonus=START_BONUS; render();
+document.getElementById("resetBtn").onclick = () => {
+  emps.forEach(e => { e.m = 0; e.b = 0; });
+  merit = START_MERIT;
+  bonus = START_BONUS;
+  render();
 };
 
 render();
